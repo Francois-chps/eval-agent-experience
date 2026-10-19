@@ -3,6 +3,10 @@
 !.env.example
 auth.json
 
+tmp/
+runs/
+*.log
+
 node_modules/
 dist/
 *.tsbuildinfo
@@ -11,11 +15,6 @@ coverage/
 __pycache__/
 *.pyc
 .venv/
-
-runs/*/workspace/
-runs/
-tmp/
-*.log
 
 .vscode/*
 !.vscode/extensions.json
