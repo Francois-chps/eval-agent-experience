@@ -6,6 +6,7 @@
  * Exit codes match scripts/check-neutrality.sh:
  *   0 = success, 1 = failure, 2 = usage error.
  */
+import { ConfigError, loadExperiment } from "./config.ts";
 
 const USAGE = `Usage: npm run bench -- <command> [args]
 
@@ -14,8 +15,8 @@ Commands:
   run <experiment.yaml>    Execute the runs that are not finished yet
   help                     Show this message`;
 
-function main(argv: readonly string[]): number {
-  const [command] = argv;
+async function main(argv: readonly string[]): Promise<number> {
+  const [command, ...args] = argv;
 
   switch (command) {
     case "help":
@@ -24,6 +25,7 @@ function main(argv: readonly string[]): number {
       console.log(USAGE);
       return 0;
     case "plan":
+      return plan(args);
     case "run":
       console.error(`bench: '${command}' is not implemented yet`);
       return 1;
@@ -36,4 +38,22 @@ function main(argv: readonly string[]): number {
   }
 }
 
-process.exitCode = main(process.argv.slice(2));
+async function plan(args: readonly string[]): Promise<number> {
+  const [file] = args;
+  if (file === undefined) {
+    console.error(`bench: plan needs an experiment file\n\n${USAGE}`);
+    return 2;
+  }
+
+  const experiment = await loadExperiment(file);
+  console.log(JSON.stringify(experiment, null, 2));
+  return 0;
+}
+
+try {
+  process.exitCode = await main(process.argv.slice(2));
+} catch (error) {
+  if (!(error instanceof ConfigError)) throw error;
+  console.error(`bench: ${error.message}`);
+  process.exitCode = 1;
+}
