@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ConfigError } from "../src/config.ts";
-import { loadPrompt } from "../src/prompt.ts";
+import { ConfigError } from "../../src/config.ts";
+import { loadPrompt } from "../../src/prompt.ts";
 
 const GOOD = `---
 id: email.cto.p1
