@@ -29,7 +29,7 @@ protocol:
       text: Sounds good, go ahead.
 
 repetitions: 1
-timeout_s: 600
+timeout_s: 1200
 
 outcome:
   labels: [provider, smtp-generic, in-house, none, error]
