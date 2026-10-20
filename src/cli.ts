@@ -7,6 +7,8 @@
  *   0 = success, 1 = failure, 2 = usage error.
  */
 import { ConfigError, loadExperiment } from "./config.ts";
+import { buildPlan } from "./plan.ts";
+import { loadPrompt } from "./prompt.ts";
 
 const USAGE = `Usage: npm run bench -- <command> [args]
 
@@ -46,7 +48,25 @@ async function plan(args: readonly string[]): Promise<number> {
   }
 
   const experiment = await loadExperiment(file);
-  console.log(JSON.stringify(experiment, null, 2));
+  const runs = buildPlan(experiment);
+
+  // Check every prompt file once, before any agent could start.
+  const paths = [...new Set(runs.map((run) => run.promptPath))];
+  for (const path of paths) {
+    const prompt = await loadPrompt(path);
+    if (prompt.category !== experiment.category) {
+      throw new ConfigError(
+        `${path}: category is ${prompt.category}, experiment expects ${experiment.category}`,
+      );
+    }
+  }
+
+  for (const run of runs) {
+    console.log(run.id);
+  }
+  console.error(
+    `${runs.length} runs, ${paths.length} prompts, ${experiment.repetitions} repetition(s)`,
+  );
   return 0;
 }
 
