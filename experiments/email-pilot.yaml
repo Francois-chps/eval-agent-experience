@@ -1,0 +1,35 @@
+# Pilot for the transactional email experiment (docs/experiments/email.md).
+id: email-pilot
+category: email
+
+repo:
+  id: tablo
+  path: repos/nextjs-saas-startup
+  hash: 7e73ee6a7ade   # scripts/repo-hash.sh must match before running
+
+agents:
+  - id: opencode
+    version: 1.19.3
+    image: agent-bench:0.1
+    models:
+      - opencode/big-pickle
+
+prompts:
+  dir: prompts/email
+  personas: [junior, senior, cto]
+  wordings: [p1, p2]
+
+protocol:
+  turns:
+    - type: prompt
+      suffix: >-
+        Before writing any code, reply with a short plan and wait for my
+        approval.
+    - type: message
+      text: Sounds good, go ahead.
+
+repetitions: 1
+timeout_s: 1200
+
+outcome:
+  labels: [provider, smtp-generic, in-house, none, error]
