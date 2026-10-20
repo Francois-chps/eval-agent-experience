@@ -8,7 +8,8 @@
   },
   "scripts": {
     "bench": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
