@@ -5,13 +5,14 @@ import { loadExperiment } from "../../src/config.ts";
 import type { CommandResult, Run } from "../../src/exec.ts";
 
 const pilot = await loadExperiment("experiments/email-pilot.yaml");
-
+const STATUS = "git status --porcelain -- repos/nextjs-saas-startup";
 const HASH = "scripts/repo-hash.sh repos/nextjs-saas-startup";
 const NEUTRAL = "scripts/check-neutrality.sh repos/nextjs-saas-startup";
 const INSPECT = "docker image inspect --format {{.Id}} agent-bench:0.1";
 const VERSION = "docker run --rm agent-bench:0.1 opencode --version";
 
 const HAPPY: Record<string, Partial<CommandResult>> = {
+    [STATUS]: { stdout: "" },
   [HASH]: { stdout: "7e73ee6a7ade\n" },
   [NEUTRAL]: { stdout: "neutral\n" },
   [INSPECT]: { stdout: "sha256:abc\n" },
@@ -42,12 +43,13 @@ test("all checks pass when conditions match the config", async () => {
   const { run, calls } = fake();
   const results = await preflight(pilot, run);
   assert.deepEqual(results.map((r) => [r.name, r.ok]), [
+    ["repo committed", true],
     ["repo hash", true],
     ["neutrality", true],
     ["opencode image", true],
     ["opencode version", true],
   ]);
-  assert.deepEqual(calls, [HASH, NEUTRAL, INSPECT, VERSION]);
+  assert.deepEqual(calls, [STATUS, HASH, NEUTRAL, INSPECT, VERSION]);
 });
 
 test("a different repo hash fails and says what was expected", async () => {
@@ -98,4 +100,11 @@ test("all problems are reported at once", async () => {
   });
   const failed = (await preflight(pilot, run)).filter((r) => !r.ok).map((r) => r.name);
   assert.deepEqual(failed, ["repo hash", "opencode version"]);
+});
+
+test("uncommitted changes in the repo fail", async () => {
+  const { run } = fake({ [STATUS]: { stdout: " M app/page.tsx\n" } });
+  const check = byName(await preflight(pilot, run), "repo committed");
+  assert.equal(check.ok, false);
+  assert.match(check.detail, /uncommitted changes/);
 });

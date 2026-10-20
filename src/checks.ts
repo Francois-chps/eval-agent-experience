@@ -25,6 +25,16 @@ export async function preflight(
 ): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   const { path, hash: expectedHash } = experiment.repo;
+  const status = await run("git", ["status", "--porcelain", "--", path]);
+  if (status.code !== 0) {
+    results.push(fail("repo committed", `git status failed: ${output(status)}`));
+  } else if (status.stdout.trim() !== "") {
+    results.push(
+      fail("repo committed", `uncommitted changes in ${path} (runs use committed content only)`),
+    );
+  } else {
+    results.push(pass("repo committed", `${path} has no uncommitted changes`));
+  }
 
   const hash = await run("scripts/repo-hash.sh", [path]);
   const actualHash = lastLine(hash.stdout);
