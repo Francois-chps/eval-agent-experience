@@ -9,7 +9,9 @@
   "scripts": {
     "bench": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/*.test.ts"
+    "test": "npm run test:unit && npm run test:integration",
+    "test:integration": "tsx --test test/integration/*.test.ts",
+    "test:unit": "tsx --test test/unit/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
