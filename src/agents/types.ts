@@ -27,5 +27,7 @@ export interface AgentAdapter {
   readonly versionCommand: readonly string[];
     /** Arguments for `docker` that run one turn. Pure: runs nothing. */
   turnArgs(spec: TurnSpec): string[];
+  /** Session to resume, read from one turn's stdout; undefined if none. */
+  sessionId(jsonl: string): string | undefined;
 
 }

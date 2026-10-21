@@ -43,9 +43,38 @@ function turnArgs(spec: TurnSpec): string[] {
     spec.message,
   ];
 }
+type TraceEvent = Record<string, unknown>;
+
+/**
+ * One JSON object per line. Blank and invalid lines are skipped: a turn
+ * killed at the timeout often ends in the middle of a line.
+ */
+function events(jsonl: string): TraceEvent[] {
+  const result: TraceEvent[] = [];
+  for (const line of jsonl.split("\n")) {
+    if (line.trim() === "") continue;
+    try {
+      const value: unknown = JSON.parse(line);
+      if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        result.push(value as TraceEvent);
+      }
+    } catch {
+      // Not JSON: skip the line, keep the others.
+    }
+  }
+  return result;
+}
+
+/** Like the pilot: the first event carrying a session id. */
+function sessionId(jsonl: string): string | undefined {
+  for (const event of events(jsonl)) {
+    if (typeof event.sessionID === "string" && event.sessionID !== "") return event.sessionID;
+  }
+  return undefined;
+}
 
 export const opencode: AgentAdapter = {
   id: "opencode",
   versionCommand: ["opencode", "--version"],
-  turnArgs,
+  turnArgs, sessionId,
 };
