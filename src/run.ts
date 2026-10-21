@@ -102,11 +102,12 @@ export async function runOne(
   spec: RunSpec,
   runsRoot: string = RUNS_ROOT,
 ): Promise<"done" | "skipped"> {
-  const agent = experiment.agents.find((candidate) => candidate.id === spec.agent);
-  const adapter = findAdapter(spec.agent);
-  if (agent === undefined || adapter === undefined) {
-    throw new ConfigError(`no adapter for agent ${spec.agent}`);
+  const agent = spec.agent;
+  const adapter = findAdapter(agent.id);
+  if (adapter === undefined) {
+    throw new ConfigError(`no adapter for agent ${agent.id}`);
   }
+
   const conditions: Conditions = {
     agent_version: agent.version,
     image: agent.image,
@@ -156,7 +157,7 @@ export async function runOne(
     persona: spec.persona,
     wording: spec.wording,
     repetition: spec.repetition,
-    agent: spec.agent,
+    agent: spec.agent.id,
     ...conditions,
     session_id: outcome.sessionId,
     started_at: startedAt,
