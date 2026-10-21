@@ -9,6 +9,8 @@
 import { ConfigError, loadExperiment } from "./config.ts";
 import { buildPlan } from "./plan.ts";
 import { loadPrompt } from "./prompt.ts";
+import { runExperiment } from "./run.ts";
+
 
 const USAGE = `Usage: npm run bench -- <command> [args]
 
@@ -29,8 +31,7 @@ async function main(argv: readonly string[]): Promise<number> {
     case "plan":
       return plan(args);
     case "run":
-      console.error(`bench: '${command}' is not implemented yet`);
-      return 1;
+      return execute(args);
     case undefined:
       console.error(USAGE);
       return 2;
@@ -68,6 +69,15 @@ async function plan(args: readonly string[]): Promise<number> {
     `${runs.length} runs, ${paths.length} prompts, ${experiment.repetitions} repetition(s)`,
   );
   return 0;
+}
+
+async function execute(args: readonly string[]): Promise<number> {
+  const [file] = args;
+  if (file === undefined) {
+    console.error(`bench: run needs an experiment file\n\n${USAGE}`);
+    return 2;
+  }
+  return runExperiment(file);
 }
 
 try {

@@ -4,8 +4,7 @@ TypeScript tool that turns an experiment config into runs and checks that
 every run happens under the conditions the config declares.
 
 Status: the foundations are in place (config, plan, preflight checks,
-workspace, long commands, `meta.json`). The OpenCode adapter can run one turn; the
-`run` command comes in a follow-up pull request.
+workspace, long commands, `meta.json`). `run` executes an experiment end to end.
 
 
 ## Requirements
@@ -19,6 +18,7 @@ workspace, long commands, `meta.json`). The OpenCode adapter can run one turn; t
 npm install
 npm run bench -- help
 npm run bench -- plan experiments/email-pilot.yaml
+npm run bench -- run experiments/email-pilot.yaml
 ```
 
 `plan` prints one run id per line on stdout and a summary
@@ -80,6 +80,25 @@ Everything specific to OpenCode lives in `src/agents/opencode.ts`:
 
 Unlike the pilot's `jq -s`, invalid JSON lines are skipped instead of failing
 the whole trace: a turn killed at the timeout often ends mid-line.
+
+## Running an experiment
+
+`run` checks the preflight first, then executes each run of the plan in
+`tmp/runs/<run id>/` (needs `.env` in the current directory).
+
+| Situation | Behaviour |
+|---|---|
+| valid `meta.json`, same conditions | finished: skipped |
+| valid `meta.json`, other conditions | refused (agent version, image, model, repo hash, timeout, branch) |
+| invalid `meta.json` | refused: delete the run directory to rerun it |
+| no `meta.json` | interrupted run: directory wiped, run restarted |
+| Docker fails (no start, exit 125-127) | run not recorded, `run` stops |
+
+A turn after the first runs only if the previous one exited 0 with a
+session id; otherwise it is recorded as skipped.
+
+The pilot counted agent instruction files with a grep that missed files at
+the repo root (no pilot run wrote one); the runner counts them correctly.
 
 
 ## meta.json
