@@ -4,8 +4,9 @@ TypeScript tool that turns an experiment config into runs and checks that
 every run happens under the conditions the config declares.
 
 Status: the foundations are in place (config, plan, preflight checks,
-workspace, long commands, `meta.json`). Running agents and the `run`
-command come in follow-up pull requests.
+workspace, long commands, `meta.json`). The OpenCode adapter can run one turn; the
+`run` command comes in a follow-up pull request.
+
 
 ## Requirements
 
@@ -63,6 +64,23 @@ Agent turns run with `runLongCommand`: stdout and stderr go straight to
 files (`turnN.jsonl`, `turnN.stderr.log`), so nothing is held in memory and
 partial output survives a timeout. At the timeout the command gets SIGTERM,
 then SIGKILL after a 5-second grace period.
+
+## OpenCode adapter
+
+Everything specific to OpenCode lives in `src/agents/opencode.ts`:
+
+- the `docker run` arguments of each turn, identical to `scripts/pilot-run.sh`;
+- `home-local`, created before being mounted as `~/.local` (Docker would
+  create it as root, and OpenCode could not write its session database);
+- after a timeout, `docker rm -f` on the turn's container, since killing the
+  `docker` client does not always stop the container;
+- the session id (first `sessionID` of a turn) and the metrics: tokens and
+  cost summed over `step_finish` events, tool calls counted from `tool_use`
+  events.
+
+Unlike the pilot's `jq -s`, invalid JSON lines are skipped instead of failing
+the whole trace: a turn killed at the timeout often ends mid-line.
+
 
 ## meta.json
 

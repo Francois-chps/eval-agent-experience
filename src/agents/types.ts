@@ -1,3 +1,4 @@
+import type { LongCommand, LongResult, Run } from "../exec.ts";
 /**
  * What the runner needs from an agent. Everything specific to one agent
  * (its CLI, its output format, its Docker setup) lives in its adapter.
@@ -27,6 +28,20 @@ export interface TraceMetrics {
   tool_calls: number;
 }
 
+/** Ways to run commands; tests pass fakes instead of Docker. */
+export interface TurnRunners {
+  run: Run;
+  runLong: (spec: LongCommand) => Promise<LongResult>;
+}
+
+/** Outcome of one turn; its output stays in the files. */
+export interface TurnResult extends LongResult {
+  stdoutPath: string;
+  stderrPath: string;
+  /** Session found in this turn's stdout, if any. */
+  sessionId: string | undefined;
+}
+
 export interface AgentAdapter {
   /** Matches agents[].id in the experiment config. */
   readonly id: string;
@@ -38,4 +53,6 @@ export interface AgentAdapter {
   sessionId(jsonl: string): string | undefined;
     /** Metrics of the whole trace (all turns concatenated). */
   metrics(trace: string): TraceMetrics;
+    /** Runs one turn in Docker. Never throws: problems end up in the result. */
+  runTurn(spec: TurnSpec, timeoutS: number, runners?: TurnRunners): Promise<TurnResult>;
 }

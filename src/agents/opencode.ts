@@ -1,5 +1,8 @@
 import { join, resolve } from "node:path";
-import type { AgentAdapter, TraceMetrics, TurnSpec } from "./types.ts";
+import { mkdir, readFile } from "node:fs/promises";
+import { runCommand, runLongCommand } from "../exec.ts";
+import type { AgentAdapter, TraceMetrics, TurnResult, TurnRunners, TurnSpec } from "./types.ts";
+
 
 // Same as scripts/pilot-run.sh, so runs stay comparable with the pilot.
 const ENV_FILE = ".env";
@@ -95,8 +98,50 @@ function numberOrZero(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+const REAL_RUNNERS: TurnRunners = { run: runCommand, runLong: runLongCommand };
+
+/** One turn, like run_turn in scripts/pilot-run.sh. Never throws. */
+async function runTurn(
+  spec: TurnSpec,
+  timeoutS: number,
+  runners: TurnRunners = REAL_RUNNERS,
+): Promise<TurnResult> {
+  const stdoutPath = join(spec.runDir, `turn${spec.turn}.jsonl`);
+  const stderrPath = join(spec.runDir, `turn${spec.turn}.stderr.log`);
+  try {
+    // Created here, not by docker -v: docker would create it as root and
+    // OpenCode (uid 1000) could not write its session database.
+    await mkdir(homeLocalDir(spec.runDir), { recursive: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      code: null,
+      seconds: 0,
+      timedOut: false,
+      error: message,
+      stdoutPath,
+      stderrPath,
+      sessionId: undefined,
+    };
+  }
+
+  const result = await runners.runLong({
+    command: "docker",
+    args: turnArgs(spec),
+    stdoutPath,
+    stderrPath,
+    timeoutS,
+  });
+  if (result.timedOut) {
+    // Killing the docker client does not always stop the container.
+    await runners.run("docker", ["rm", "-f", containerName(spec.runId, spec.turn)]);
+  }
+  const output = await readFile(stdoutPath, "utf8").catch(() => "");
+  return { ...result, stdoutPath, stderrPath, sessionId: sessionId(output) };
+}
+
 export const opencode: AgentAdapter = {
   id: "opencode",
   versionCommand: ["opencode", "--version"],
-  turnArgs, sessionId, metrics,
+  turnArgs, sessionId, metrics, runTurn,
 };
