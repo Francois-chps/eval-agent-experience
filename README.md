@@ -1,5 +1,7 @@
 # agent-tool-choice-bench
 
+[![CI](https://github.com/Francois-chps/eval-agent-experience/actions/workflows/ci.yml/badge.svg)](https://github.com/Francois-chps/eval-agent-experience/actions/workflows/ci.yml)
+
 > Which tools do AI coding agents pick when building real software, and does the way you ask change the answer?
 
 **Status:** 🚧 Work in progress. Pipeline under construction, no results yet.
