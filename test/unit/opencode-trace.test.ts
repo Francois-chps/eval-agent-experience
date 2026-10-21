@@ -29,3 +29,36 @@ test("an empty or non-string session id is ignored", () => {
   const turn = jsonl({ sessionID: 42 }, { sessionID: "" }, STEP_START);
   assert.equal(opencode.sessionId(turn), SESSION);
 });
+
+const TOOL_USE = { type: "tool_use", sessionID: SESSION, part: { tool: "read" } };
+
+function stepFinish(total: number, cost: number) {
+  return { type: "step_finish", sessionID: SESSION, part: { tokens: { total }, cost } };
+}
+
+test("metrics add up every step and count tool calls", () => {
+  const trace = jsonl(
+    STEP_START,
+    TOOL_USE,
+    stepFinish(1000, 0.25),
+    STEP_START,
+    TOOL_USE,
+    TOOL_USE,
+    stepFinish(500, 0.5),
+  );
+  assert.deepEqual(opencode.metrics(trace), { tokens: 1500, cost: 0.75, tool_calls: 3 });
+});
+
+test("an empty trace has zero metrics", () => {
+  assert.deepEqual(opencode.metrics(""), { tokens: 0, cost: 0, tool_calls: 0 });
+});
+
+test("a step without tokens or cost counts as zero", () => {
+  const trace = jsonl({ type: "step_finish", part: {} }, { type: "step_finish" });
+  assert.deepEqual(opencode.metrics(trace), { tokens: 0, cost: 0, tool_calls: 0 });
+});
+
+test("a truncated last line keeps the earlier steps", () => {
+  const trace = jsonl(stepFinish(1000, 0)) + '{"type":"step_finish","part":{"tok';
+  assert.equal(opencode.metrics(trace).tokens, 1000);
+});

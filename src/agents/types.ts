@@ -20,6 +20,13 @@ export interface TurnSpec {
   sessionId?: string;
 }
 
+/** Usage read from a whole trace; names match meta.json. */
+export interface TraceMetrics {
+  tokens: number;
+  cost: number;
+  tool_calls: number;
+}
+
 export interface AgentAdapter {
   /** Matches agents[].id in the experiment config. */
   readonly id: string;
@@ -29,5 +36,6 @@ export interface AgentAdapter {
   turnArgs(spec: TurnSpec): string[];
   /** Session to resume, read from one turn's stdout; undefined if none. */
   sessionId(jsonl: string): string | undefined;
-
+    /** Metrics of the whole trace (all turns concatenated). */
+  metrics(trace: string): TraceMetrics;
 }

@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import type { AgentAdapter, TurnSpec } from "./types.ts";
+import type { AgentAdapter, TraceMetrics, TurnSpec } from "./types.ts";
 
 // Same as scripts/pilot-run.sh, so runs stay comparable with the pilot.
 const ENV_FILE = ".env";
@@ -73,8 +73,30 @@ function sessionId(jsonl: string): string | undefined {
   return undefined;
 }
 
+/** Same rules as the pilot's jq queries; a missing value counts as 0. */
+function metrics(trace: string): TraceMetrics {
+  const result: TraceMetrics = { tokens: 0, cost: 0, tool_calls: 0 };
+  for (const event of events(trace)) {
+    if (event.type === "tool_use") result.tool_calls += 1;
+    if (event.type !== "step_finish") continue;
+    result.tokens += numberOrZero(field(field(event.part, "tokens"), "total"));
+    result.cost += numberOrZero(field(event.part, "cost"));
+  }
+  return result;
+}
+
+function field(value: unknown, key: string): unknown {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+}
+
+function numberOrZero(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 export const opencode: AgentAdapter = {
   id: "opencode",
   versionCommand: ["opencode", "--version"],
-  turnArgs, sessionId,
+  turnArgs, sessionId, metrics,
 };
