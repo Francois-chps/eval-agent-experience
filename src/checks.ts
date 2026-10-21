@@ -6,18 +6,13 @@
  */
 import { runCommand, type CommandResult, type Run } from "./exec.ts";
 import type { Experiment } from "./schema.ts";
+import { findAdapter } from "./agents/index.ts";
 
 export interface CheckResult {
   name: string;
   ok: boolean;
   detail: string;
 }
-
-// How to print each agent's version inside its image.
-// Moves into the agent adapter when adapters exist.
-const VERSION_COMMANDS: Record<string, string[]> = {
-  opencode: ["opencode", "--version"],
-};
 
 export async function preflight(
   experiment: Experiment,
@@ -61,12 +56,13 @@ export async function preflight(
     }
     results.push(pass(`${agent.id} image`, agent.image));
 
-    const versionCommand = VERSION_COMMANDS[agent.id];
-    if (versionCommand === undefined) {
+    const adapter = findAdapter(agent.id);
+    if (adapter === undefined) {
       results.push(fail(`${agent.id} version`, `no version command known for agent ${agent.id}`));
       continue;
     }
-    const version = await run("docker", ["run", "--rm", agent.image, ...versionCommand]);
+    const version = await run("docker", ["run", "--rm", agent.image, ...adapter.versionCommand]);
+
     const actualVersion = lastLine(version.stdout);
     results.push(
       version.code === 0 && actualVersion === agent.version
