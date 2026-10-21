@@ -41,7 +41,7 @@ lockfile=""
 for f in "${files[@]}"; do
   [ -f "$f" ] || continue # deleted but not yet committed
   case "$f" in
-    */package-lock.json) lockfile="$f" ;;
+    package-lock.json|*/package-lock.json) lockfile="$f" ;;
     *) sources+=("$f") ;;
   esac
 done

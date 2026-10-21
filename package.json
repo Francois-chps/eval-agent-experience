@@ -1,0 +1,25 @@
+{
+  "name": "eval-agent-experience",
+  "private": true,
+  "description": "Which tools do coding agents pick? A small benchmark harness.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bench": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:integration": "tsx --test test/integration/*.test.ts",
+    "test:unit": "tsx --test test/unit/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  }
+}
