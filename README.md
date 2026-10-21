@@ -67,3 +67,8 @@ docker build -t agent-bench:0.1 .
 ## Limitations
 
 *Documented as the project progresses: sample size, free-model availability, judge reliability, synthetic repo realism.*
+
+## Runner
+
+See [docs/runner.md](docs/runner.md) for the experiment runner: commands,
+preflight checks, workspace and `meta.json` format.
