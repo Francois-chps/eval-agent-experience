@@ -11,6 +11,7 @@ import { buildPlan } from "./plan.ts";
 import { loadPrompt } from "./prompt.ts";
 import { runExperiment } from "./run.ts";
 import { reportExperiment } from "./report/report.ts";
+import { publishPage } from "./report/publish.ts";
 
 
 const USAGE = `Usage: npm run bench -- <command> [args]
@@ -19,6 +20,7 @@ Commands:
   plan <experiment.yaml>   List the runs an experiment would execute
   run <experiment.yaml>    Execute the runs that are not finished yet
   report <experiment.yaml> Detect the email tool of each finished run
+  page <experiment.yaml>   Write results/<id>.md from the report
   help                     Show this message`;
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -36,6 +38,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return execute(args);
     case "report":
       return report(args);
+    case "page":
+      return page(args);
     case undefined:
       console.error(USAGE);
       return 2;
@@ -91,6 +95,15 @@ async function report(args: readonly string[]): Promise<number> {
     return 2;
   }
   return reportExperiment(file);
+}
+
+async function page(args: readonly string[]): Promise<number> {
+  const [file] = args;
+  if (file === undefined) {
+    console.error(`bench: page needs an experiment file\n\n${USAGE}`);
+    return 2;
+  }
+  return publishPage(file);
 }
 
 try {
