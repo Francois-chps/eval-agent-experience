@@ -1,6 +1,6 @@
 /**
  * bench report: applies the detector to every finished run of an experiment
- * and writes results.csv and results.json next to the runs.
+ * and writes results.csv, results.json and summary.csv next to the runs.
  *
  * Runs come from the plan, not from a directory walk, so only the runs the
  * config describes are reported, at the same path `run` writes them.
@@ -14,6 +14,7 @@ import { readMeta, type Meta } from "../meta.ts";
 import { buildPlan } from "../plan.ts";
 import { RUNS_ROOT } from "../run.ts";
 import { toCsv } from "./csv.ts";
+import { DIMENSIONS, summarize } from "./summary.ts";
 
 export interface ReportRow {
   run_id: string;
@@ -51,6 +52,28 @@ const CSV_HEADER = [
   "tools",
   "primary_tool",
 ] as const;
+
+const SUMMARY_HEADER = [
+  "dimension",
+  "group",
+  "tool",
+  "count",
+  "total",
+  "rate",
+  "lower",
+  "upper",
+  "timed_out",
+] as const;
+
+/** Four decimals: precise enough for a rate, short enough to read the CSV. */
+function round(value: number): number {
+  return Math.round(value * 10_000) / 10_000;
+}
+
+/** 0.0615 -> "  6.1%", padded so the columns line up. */
+function percent(value: number): string {
+  return `${(value * 100).toFixed(1).padStart(5)}%`;
+}
 
 /** The diff of a run, or null when the run has no diff.patch. */
 async function readDiff(path: string): Promise<string | null> {
@@ -96,7 +119,10 @@ export async function buildReport(configPath: string, runsRoot: string = RUNS_RO
   return report;
 }
 
-/** Writes results.csv and results.json and prints a summary. Exit code 1 when no run is finished. */
+/**
+ * Writes results.csv, results.json and summary.csv, and prints the overall
+ * choice rates with their 95% Wilson interval. Exit code 1 when no run is finished.
+ */
 export async function reportExperiment(configPath: string, runsRoot: string = RUNS_ROOT): Promise<number> {
   const report = await buildReport(configPath, runsRoot);
   for (const { run_id, reason } of report.skipped) {
@@ -113,6 +139,7 @@ export async function reportExperiment(configPath: string, runsRoot: string = RU
   const outDir = join(runsRoot, report.experiment);
   const csvPath = join(outDir, "results.csv");
   const jsonPath = join(outDir, "results.json");
+  const summaryPath = join(outDir, "summary.csv");
   await mkdir(outDir, { recursive: true });
   const csvRows = report.rows.map((row) => [
     row.run_id,
@@ -129,15 +156,33 @@ export async function reportExperiment(configPath: string, runsRoot: string = RU
   await writeFile(csvPath, toCsv(CSV_HEADER, csvRows));
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
 
-  const counts = new Map<string, number>();
-  for (const row of report.rows) counts.set(row.primary_tool, (counts.get(row.primary_tool) ?? 0) + 1);
-  console.log("primary tool:");
-  for (const [tool, count] of [...counts].sort((a, b) => b[1] - a[1])) {
-    console.log(`  ${tool.padEnd(12)} ${count}`);
+  const summary = summarize(report.rows, DIMENSIONS);
+  const summaryRows = summary.map((row) => [
+    row.dimension,
+    row.group,
+    row.tool,
+    row.count,
+    row.total,
+    round(row.rate),
+    round(row.lower),
+    round(row.upper),
+    row.timed_out,
+  ]);
+  await writeFile(summaryPath, toCsv(SUMMARY_HEADER, summaryRows));
+
+  // Overall rates only; tools are already sorted by count, so by rate here.
+  console.log("primary tool, all runs (95% Wilson interval):");
+  for (const row of summary) {
+    if (row.dimension !== "all" || row.count === 0) continue;
+    const share = `${row.count}/${row.total}`;
+    console.log(
+      `  ${row.tool.padEnd(12)} ${share.padStart(7)} ${percent(row.rate)}  [${percent(row.lower)}, ${percent(row.upper)}]`,
+    );
   }
   const timedOut = report.rows.filter((row) => row.timed_out).length;
   const noDiff = report.rows.filter((row) => !row.has_diff).length;
   console.log(`timed out: ${timedOut}, no diff.patch: ${noDiff}`);
-  console.error(`wrote ${csvPath} and ${jsonPath}`);
+  console.log(`by persona, wording and model: ${summaryPath}`);
+  console.error(`wrote ${csvPath}, ${jsonPath} and ${summaryPath}`);
   return 0;
 }
