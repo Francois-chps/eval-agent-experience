@@ -54,7 +54,7 @@ async function planIds(): Promise<(index: number) => string> {
   };
 }
 
-test("report covers finished runs only and writes CSV and JSON", async (t) => {
+test("report covers finished runs only and writes CSV, JSON and summary", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "report-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const id = await planIds();
@@ -65,6 +65,7 @@ test("report covers finished runs only and writes CSV and JSON", async (t) => {
   await fakeRun(root, id(2), { "meta.json": JSON.stringify(meta(id(2))) });
   await fakeRun(root, id(3), { "meta.json": "{}" });
 
+  const log = t.mock.method(console, "log", () => {});
   assert.equal(await reportExperiment(CONFIG, root), 0);
 
   const csv = (await readFile(join(root, "email-full", "results.csv"), "utf8")).trim().split("\n");
@@ -79,6 +80,21 @@ test("report covers finished runs only and writes CSV and JSON", async (t) => {
   assert.ok(json.rows[1].evidence.length >= 2);
   assert.deepEqual(json.skipped.map((item: { run_id: string }) => item.run_id), [id(3)]);
   assert.equal(json.pending, 26);
+
+  const summary = (await readFile(join(root, "email-full", "summary.csv"), "utf8")).trim().split("\n");
+  // 4 groups (all, cto, p1, big-pickle) x 3 tools (none, resend, smtp), plus the header.
+  assert.equal(summary.length, 13);
+  assert.equal(summary[0], "dimension,group,tool,count,total,rate,lower,upper,timed_out");
+  assert.match(summary[1] ?? "", /^all,all,none,1,3,0\.3333,0\.06\d*,0\.79\d*,1$/);
+  assert.match(summary[2] ?? "", /^all,all,resend,1,3,0\.3333,0\.06\d*,0\.79\d*,1$/);
+  assert.ok(summary.some((line) => line.startsWith("persona,cto,smtp,1,3,")));
+
+  const printed = log.mock.calls.map((call) => call.arguments.join(" ")).join("\n");
+  assert.ok(printed.includes("resend "), printed);
+  assert.ok(printed.includes("    1/3  33.3%  [  6.1%,  79.2%]"), printed);
+  assert.ok(printed.includes("timed out: 1, no diff.patch: 1"), printed);
+
+  assert.match(printed, /timed out: 1, no diff\.patch: 1/);
 });
 
 test("report with no finished run fails and writes nothing", async (t) => {
@@ -87,4 +103,5 @@ test("report with no finished run fails and writes nothing", async (t) => {
 
   assert.equal(await reportExperiment(CONFIG, root), 1);
   await assert.rejects(readFile(join(root, "email-full", "results.csv")));
+  await assert.rejects(readFile(join(root, "email-full", "summary.csv")));
 });
