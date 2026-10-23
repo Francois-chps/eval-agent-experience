@@ -10,6 +10,7 @@ import { ConfigError, loadExperiment } from "./config.ts";
 import { buildPlan } from "./plan.ts";
 import { loadPrompt } from "./prompt.ts";
 import { runExperiment } from "./run.ts";
+import { reportExperiment } from "./report/report.ts";
 
 
 const USAGE = `Usage: npm run bench -- <command> [args]
@@ -17,6 +18,7 @@ const USAGE = `Usage: npm run bench -- <command> [args]
 Commands:
   plan <experiment.yaml>   List the runs an experiment would execute
   run <experiment.yaml>    Execute the runs that are not finished yet
+  report <experiment.yaml> Detect the email tool of each finished run
   help                     Show this message`;
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -32,6 +34,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return plan(args);
     case "run":
       return execute(args);
+    case "report":
+      return report(args);
     case undefined:
       console.error(USAGE);
       return 2;
@@ -78,6 +82,15 @@ async function execute(args: readonly string[]): Promise<number> {
     return 2;
   }
   return runExperiment(file);
+}
+
+async function report(args: readonly string[]): Promise<number> {
+  const [file] = args;
+  if (file === undefined) {
+    console.error(`bench: report needs an experiment file\n\n${USAGE}`);
+    return 2;
+  }
+  return reportExperiment(file);
 }
 
 try {
