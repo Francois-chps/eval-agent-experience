@@ -65,6 +65,30 @@ falls back to SMTP.
 Resend is chosen in 11/15 runs (48-89%) with the first wording and 8/15
 (30-75%) with the second. The intervals overlap widely on every tool.
 
+## Web access
+
+The agent never looked anything up online. Over the 30 runs it made 643
+tool calls (bash 356, write 103, edit 92, read 73, other 19) and none of
+them used `webfetch` or `websearch`, although both tools were available.
+
+Its shell commands reached the network in only two ways, neither about
+email: `npm view tsx version` in 1 run, to check the version of a
+TypeScript runner, and `curl` requests to the app it was building on
+`localhost:3000` in 3 runs, to test the signup route. No command fetched a
+provider's documentation or package metadata.
+
+Counted from the `"tool"` field of every turn log; the total matches the
+`tool_calls` recorded in `meta.json`. The 2 runs that started subagents
+(`task`) were also checked in OpenCode's session database, which stores
+subagent sessions: no web tool call there either.
+
+So with this model, the provider choice comes from what the model learned
+in training, not from documentation read during the session: a vendor's
+live docs never had a chance to weigh in. Armature reports web searches in
+94% of Codex sessions and about 30% of Claude Code sessions; those are
+other agents and models, so the figures are not directly comparable, but
+they show that how much an agent reads online varies widely.
+
 ## Limits
 
 - **One model, one agent.** A free model through OpenCode; other models or
