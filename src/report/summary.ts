@@ -1,18 +1,21 @@
 /**
- * Choice rates per primary tool, overall and per persona, wording and model,
- * each with a 95% Wilson interval.
+ * Choice rates per primary tool, overall and per condition, persona, wording
+ * and model, each with a 95% Wilson interval.
  *
  * Every tool seen in the experiment is listed in every group, including with a
  * count of 0: "0/10 for cto" with its upper bound is a result too.
  * "ambiguous" and "none" are categories like any tool, so rates in a group sum to 1.
  */
+import { BASELINE } from "../plan.ts";
 import { wilson } from "../stats/wilson.ts";
 import type { ReportRow } from "./report.ts";
 
-export const DIMENSIONS = ["all", "persona", "wording", "model"] as const;
+export const DIMENSIONS = ["all", "condition", "persona", "wording", "model"] as const;
 export type Dimension = (typeof DIMENSIONS)[number];
 
-export type SummaryInput = Pick<ReportRow, "persona" | "wording" | "model" | "primary_tool" | "timed_out">;
+/** condition is optional: a results.json written before conditions has none. */
+export type SummaryInput = Pick<ReportRow, "persona" | "wording" | "model" | "primary_tool" | "timed_out"> &
+  Partial<Pick<ReportRow, "condition">>;
 
 export interface SummaryRow {
   dimension: Dimension;
@@ -30,7 +33,18 @@ export interface SummaryRow {
 }
 
 function groupOf(row: SummaryInput, dimension: Dimension): string {
-  return dimension === "all" ? "all" : row[dimension];
+  if (dimension === "all") return "all";
+  if (dimension === "condition") return row.condition ?? BASELINE;
+  return row[dimension];
+}
+
+/**
+ * Dimensions worth summarizing for these rows: the condition only when the
+ * runs cover more than one, so single-condition experiments keep their summary.
+ */
+export function dimensionsFor(rows: readonly SummaryInput[]): Dimension[] {
+  const conditions = new Set(rows.map((row) => groupOf(row, "condition")));
+  return DIMENSIONS.filter((dimension) => dimension !== "condition" || conditions.size > 1);
 }
 
 /** Tools by overall count, most chosen first; ties by name, so the order is stable. */
@@ -42,7 +56,7 @@ function toolsByCount(rows: readonly SummaryInput[]): string[] {
 
 export function summarize(
   rows: readonly SummaryInput[],
-  dimensions: readonly Dimension[] = DIMENSIONS,
+  dimensions: readonly Dimension[] = dimensionsFor(rows),
 ): SummaryRow[] {
   const tools = toolsByCount(rows);
   const summary: SummaryRow[] = [];
@@ -52,7 +66,10 @@ export function summarize(
       const key = groupOf(row, dimension);
       groups.set(key, [...(groups.get(key) ?? []), row]);
     }
-    for (const group of [...groups.keys()].sort()) {
+    // Conditions keep the order of the runs, which is the config order
+    // (baseline, then the ladder); other groups are sorted by name.
+    const keys = dimension === "condition" ? [...groups.keys()] : [...groups.keys()].sort();
+    for (const group of keys) {
       const members = groups.get(group) ?? [];
       const timedOut = members.filter((row) => row.timed_out).length;
       for (const tool of tools) {

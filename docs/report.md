@@ -13,6 +13,7 @@ It writes `results.csv` and `results.json` (same rows, plus the evidence) to `tm
 | Column | Meaning |
 |---|---|
 | `run_id`, `persona`, `wording`, `model`, `repetition` | Run conditions, from `meta.json` |
+| `condition` | Condition of the run, from the plan: `baseline` when the experiment declares no `conditions` |
 | `timed_out` | At least one turn hit the timeout: the change may be unfinished |
 | `has_diff` | `false` when the run has no `diff.patch` |
 | `verdict` | `single`, `multiple` or `none` |
@@ -32,7 +33,7 @@ dimension, group and primary tool.
 
 | Column | Meaning |
 |---|---|
-| `dimension` | `all`, `persona`, `wording` or `model` |
+| `dimension` | `all`, `condition`, `persona`, `wording` or `model` |
 | `group` | value of the dimension, e.g. `cto`; `all` for the whole experiment |
 | `tool` | primary tool (`ambiguous` and `none` included) |
 | `count` / `total` | runs of the group with this primary tool / runs in the group |
@@ -45,6 +46,12 @@ groups can be compared line by line: `0/10` with an upper bound of 27.8% is a
 result too. Values are rounded to 4 decimals; `results.json` keeps raw values.
 Timed-out runs are counted, since the agent had already made a choice, but
 they are shown per group so the reader can judge their weight.
+The `condition` dimension only appears when the runs cover more than one
+condition, so experiments without `conditions` keep the same summary and page.
+Its groups follow the config order (e.g. baseline first, then the variants),
+not the alphabetical order; the terminal output also prints the rates of each
+condition.
+
 
 ## Confidence intervals
 

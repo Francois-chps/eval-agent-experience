@@ -9,6 +9,7 @@
 import { ConfigError, loadExperiment } from "./config.ts";
 import { buildPlan } from "./plan.ts";
 import { loadPrompt } from "./prompt.ts";
+import { listOverlay } from "./overlay.ts";
 import { runExperiment } from "./run.ts";
 import { reportExperiment } from "./report/report.ts";
 import { publishPage } from "./report/publish.ts";
@@ -68,6 +69,16 @@ async function plan(args: readonly string[]): Promise<number> {
         `${path}: category is ${prompt.category}, experiment expects ${experiment.category}`,
       );
     }
+
+  // Check every overlay too, and show what each condition adds to the repo.
+  for (const condition of experiment.conditions ?? []) {
+    const detail =
+      condition.overlay === undefined
+        ? "repo as is"
+        : `${condition.overlay}: ${(await listOverlay(condition.overlay)).join(", ")}`;
+    console.error(`condition ${condition.id}: ${detail}`);
+  }
+
   }
 
   for (const run of runs) {

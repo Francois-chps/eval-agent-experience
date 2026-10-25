@@ -9,7 +9,7 @@
 import type { Report } from "./report.ts";
 import { summarize, type Dimension, type SummaryRow } from "./summary.ts";
 
-const BY_GROUP: readonly Exclude<Dimension, "all">[] = ["persona", "wording", "model"];
+const BY_GROUP: readonly Exclude<Dimension, "all">[] = ["condition", "persona", "wording", "model"];
 
 /** 0.0615 -> "6%": whole percents, the intervals are far wider than a decimal. */
 function percent(value: number): string {
@@ -104,7 +104,10 @@ export function renderPage(report: Report, generatedAt: string): string {
   const sections = [
     header(report, generatedAt),
     leaderboard(all),
-    ...BY_GROUP.map((dimension) => byDimension(summary, dimension, tools)),
+    // A dimension missing from the summary (a single condition) gets no section.
+    ...BY_GROUP.filter((dimension) => summary.some((row) => row.dimension === dimension)).map(
+      (dimension) => byDimension(summary, dimension, tools),
+    ),
     HOW_TO_READ,
   ];
   return `${sections.map((lines) => lines.join("\n")).join("\n\n")}\n`;

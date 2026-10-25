@@ -6,6 +6,7 @@ import type { Report, ReportRow } from "../../src/report/report.ts";
 function row(persona: string, primary: string, timedOut = false): ReportRow {
   return {
     run_id: `run-${persona}-${primary}`,
+    condition: "baseline",
     persona,
     wording: "p1",
     model: "opencode/big-pickle",
