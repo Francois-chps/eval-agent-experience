@@ -2,7 +2,7 @@ import type { Detection, SignalKind } from "./detect.js";
 
 /** Primary tool when several tools share the strongest evidence. */
 export const AMBIGUOUS = "ambiguous";
-/** Primary tool when no email tool was detected. */
+/** Primary tool when no catalog tool was detected. */
 export const NO_TOOL = "none";
 
 /**

@@ -88,7 +88,7 @@ const HOW_TO_READ = [
   "## How to read",
   "",
   "Each run gets one primary tool, from the strongest evidence in its diff: " +
-    "`ambiguous` is a tie between tools, `none` means no email tool was found.",
+    "`ambiguous` is a tie between tools, `none` means no tool from the detection catalog was found.",
   "Cells read `count/total (95% interval)`. With few runs the intervals are wide, " +
     "and overlapping intervals do not prove there is no difference.",
   "",

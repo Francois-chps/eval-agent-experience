@@ -20,7 +20,7 @@ const USAGE = `Usage: npm run bench -- <command> [args]
 Commands:
   plan <experiment.yaml>   List the runs an experiment would execute
   run <experiment.yaml>    Execute the runs that are not finished yet
-  report <experiment.yaml> Detect the email tool of each finished run
+  report <experiment.yaml> Detect the tool of each finished run
   page <experiment.yaml>   Write results/<id>.md from the report
   help                     Show this message`;
 
