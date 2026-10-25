@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Meta } from "../../src/meta.ts";
-import { reportRow } from "../../src/report/report.ts";
+import { renderPage } from "../../src/report/page.ts";
+import { reportRow, type ReportRow } from "../../src/report/report.ts";
+import { dimensionsFor, summarize } from "../../src/report/summary.ts";
 
 const META: Meta = {
   run_id: "ladder/opencode/opencode-big-pickle/mention/cto.p1/r1",
@@ -33,4 +35,44 @@ test("a report row carries the condition given by the plan", () => {
 test("without a given condition, the row uses meta.json, then baseline", () => {
   assert.equal(reportRow({ ...META, condition: "env" }, null).condition, "env");
   assert.equal(reportRow(META, null).condition, "baseline");
+});
+
+function run(condition: string, tool: string): ReportRow {
+  return { ...reportRow(META, null, condition), primary_tool: tool };
+}
+
+// Plan order: mention comes before env, although "env" sorts first by name.
+const LADDER = [
+  run("baseline", "resend"),
+  run("mention", "sendgrid"),
+  run("env", "resend"),
+  run("baseline", "resend"),
+  run("mention", "resend"),
+  run("env", "sendgrid"),
+];
+
+test("one condition adds no dimension, several add it", () => {
+  assert.deepEqual(dimensionsFor([run("baseline", "resend")]), ["all", "persona", "wording", "model"]);
+  assert.deepEqual(dimensionsFor(LADDER), ["all", "condition", "persona", "wording", "model"]);
+});
+
+test("rows from an older results.json, without condition, count as baseline", () => {
+  const { condition, ...older } = run("baseline", "resend");
+  assert.deepEqual(dimensionsFor([older]), ["all", "persona", "wording", "model"]);
+});
+
+test("conditions keep the plan order and their own rates", () => {
+  const sendgrid = summarize(LADDER).filter((r) => r.dimension === "condition" && r.tool === "sendgrid");
+  assert.deepEqual(
+    sendgrid.map((r) => [r.group, r.count, r.total]),
+    [["baseline", 0, 2], ["mention", 1, 2], ["env", 1, 2]],
+  );
+});
+
+test("the page gets a condition section only with several conditions", () => {
+  const page = (rows: ReportRow[]) => renderPage({ experiment: "ladder", rows, skipped: [], pending: 0 }, "2026-10-25");
+  assert.equal(page([run("baseline", "resend")]).includes("## By condition"), false);
+  const ladder = page(LADDER);
+  assert.ok(ladder.includes("## By condition"));
+  assert.ok(ladder.indexOf("## By condition") < ladder.indexOf("## By persona"));
 });

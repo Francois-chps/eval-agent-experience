@@ -14,7 +14,7 @@ import { readMeta, type Meta } from "../meta.ts";
 import { BASELINE, buildPlan } from "../plan.ts";
 import { RUNS_ROOT } from "../run.ts";
 import { toCsv } from "./csv.ts";
-import { DIMENSIONS, summarize } from "./summary.ts";
+import { dimensionsFor, summarize, type SummaryRow } from "./summary.ts";
 
 export interface ReportRow {
   run_id: string;
@@ -76,6 +76,17 @@ function round(value: number): number {
 /** 0.0615 -> "  6.1%", padded so the columns line up. */
 function percent(value: number): string {
   return `${(value * 100).toFixed(1).padStart(5)}%`;
+}
+/** One line per tool chosen at least once, with its 95% Wilson interval. */
+function printRates(title: string, rows: readonly SummaryRow[]): void {
+  console.log(title);
+  for (const row of rows) {
+    if (row.count === 0) continue;
+    const share = `${row.count}/${row.total}`;
+    console.log(
+      `  ${row.tool.padEnd(12)} ${share.padStart(7)} ${percent(row.rate)}  [${percent(row.lower)}, ${percent(row.upper)}]`,
+    );
+  }
 }
 
 /** The diff of a run, or null when the run has no diff.patch. */
@@ -169,7 +180,8 @@ export async function reportExperiment(configPath: string, runsRoot: string = RU
   await writeFile(csvPath, toCsv(CSV_HEADER, csvRows));
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
 
-  const summary = summarize(report.rows, DIMENSIONS);
+  const dimensions = dimensionsFor(report.rows);
+  const summary = summarize(report.rows, dimensions);
   const summaryRows = summary.map((row) => [
     row.dimension,
     row.group,
@@ -183,19 +195,17 @@ export async function reportExperiment(configPath: string, runsRoot: string = RU
   ]);
   await writeFile(summaryPath, toCsv(SUMMARY_HEADER, summaryRows));
 
-  // Overall rates only; tools are already sorted by count, so by rate here.
-  console.log("primary tool, all runs (95% Wilson interval):");
-  for (const row of summary) {
-    if (row.dimension !== "all" || row.count === 0) continue;
-    const share = `${row.count}/${row.total}`;
-    console.log(
-      `  ${row.tool.padEnd(12)} ${share.padStart(7)} ${percent(row.rate)}  [${percent(row.lower)}, ${percent(row.upper)}]`,
-    );
+  // Tools are already sorted by overall count, so by rate in the "all" group.
+  printRates("primary tool, all runs (95% Wilson interval):", summary.filter((row) => row.dimension === "all"));
+  const byCondition = summary.filter((row) => row.dimension === "condition");
+  for (const group of new Set(byCondition.map((row) => row.group))) {
+    printRates(`condition ${group}:`, byCondition.filter((row) => row.group === group));
   }
   const timedOut = report.rows.filter((row) => row.timed_out).length;
   const noDiff = report.rows.filter((row) => !row.has_diff).length;
   console.log(`timed out: ${timedOut}, no diff.patch: ${noDiff}`);
-  console.log(`by persona, wording and model: ${summaryPath}`);
+  console.log(`by ${dimensions.filter((d) => d !== "all").join(", ")}: ${summaryPath}`);
+
   console.error(`wrote ${csvPath}, ${jsonPath} and ${summaryPath}`);
   return 0;
 }
