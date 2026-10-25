@@ -4,7 +4,9 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Run } from "../../src/exec.ts";
+import { ConfigError } from "../../src/config.ts";
 import { prepareWorkspace } from "../../src/workspace.ts";
+
 
 function fake(failOn?: string) {
   const calls: string[] = [];
@@ -50,4 +52,15 @@ test("refuses a workspace that is not empty", async () => {
   const { run, calls } = fake();
   await assert.rejects(prepareWorkspace("repos/x", dest, run), /not empty/);
   assert.equal(calls.length, 0);
+});
+
+test("the overlay is applied after extraction and before git init", async () => {
+  const { run, calls } = fake();
+  const missing = join(tmpdir(), "no-such-overlay");
+  await assert.rejects(prepareWorkspace("repos/x", await emptyDir(), run, missing), ConfigError);
+  assert.deepEqual(
+    calls.map((c) => c.split(" ").slice(0, 2).join(" ")),
+    ["git archive", "tar -x"],
+    "archive and tar ran, git init did not",
+  );
 });

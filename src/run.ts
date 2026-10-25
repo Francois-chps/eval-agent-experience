@@ -140,7 +140,8 @@ export async function runOne(
   await rm(runDir, { recursive: true, force: true });
   const workspaceDir = join(runDir, "workspace");
   await mkdir(workspaceDir, { recursive: true });
-  await prepareWorkspace(experiment.repo.path, workspaceDir, runCommand);
+  await prepareWorkspace(experiment.repo.path, workspaceDir, runCommand, spec.overlay);
+
 
   console.error(`run ${spec.id}`);
   const startedAt = new Date().toISOString();

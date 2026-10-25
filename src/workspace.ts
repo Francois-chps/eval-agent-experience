@@ -4,11 +4,16 @@
  * Same steps as scripts/pilot-run.sh: committed content only
  * (git archive), then a new git history with a neutral author, so the
  * agent sees neither the bench nor its history.
+ *
+ * A condition overlay is copied between extraction and git init: it is
+ * part of the initial commit, so the agent sees it as the original repo
+ * and it never shows up in diff.patch.
  */
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCommand, type Run } from "./exec.ts";
+import { applyOverlay } from "./overlay.ts";
 
 // Branch of the initial commit. Pinned so it does not depend on the
 // git config of the machine running the bench (the agent can see it).
@@ -18,6 +23,7 @@ export async function prepareWorkspace(
   repoPath: string,
   dest: string,
   run: Run = runCommand,
+  overlay: string | null = null,
 ): Promise<void> {
   await mkdir(dest, { recursive: true });
   if ((await readdir(dest)).length > 0) {
@@ -33,6 +39,8 @@ export async function prepareWorkspace(
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
+
+  if (overlay !== null) await applyOverlay(overlay, dest);
 
   await step(run, "git", ["-C", dest, "init", "-q", "-b", WORKSPACE_BRANCH]);
   await step(run, "git", ["-C", dest, "add", "-A"]);
