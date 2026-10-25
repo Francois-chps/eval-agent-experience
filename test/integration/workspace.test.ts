@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { loadExperiment } from "../../src/config.ts";
@@ -40,4 +40,26 @@ test("workspace holds committed Tablo with a fresh, neutral history", async (t) 
     encoding: "utf8",
   });
   assert.equal(neutrality.status, 0, neutrality.stdout + neutrality.stderr);
+});
+
+test("an overlay is part of the initial commit, not of the agent's diff", async (t) => {
+  const tmp = await mkdtemp(join(tmpdir(), "ws-"));
+  t.after(() => rm(tmp, { recursive: true, force: true }));
+  const overlay = join(tmp, "overlay");
+  await mkdir(join(overlay, "docs"), { recursive: true });
+  await writeFile(join(overlay, "README.md"), "# Tablo\n\nOverlay README.\n");
+  await writeFile(join(overlay, "docs", "overlay-check.txt"), "added by the overlay\n");
+  const dest = join(tmp, "workspace");
+
+  await prepareWorkspace(pilot.repo.path, dest, runCommand, overlay);
+
+  // The overlay replaced the repo's README on disk...
+  assert.equal(await readFile(join(dest, "README.md"), "utf8"), "# Tablo\n\nOverlay README.\n");
+  // ...inside the single neutral commit...
+  assert.equal(git(dest, "rev-list", "--count", "HEAD"), "1");
+  assert.equal(git(dest, "show", "HEAD:README.md"), "# Tablo\n\nOverlay README.");
+  assert.equal(git(dest, "show", "HEAD:docs/overlay-check.txt"), "added by the overlay");
+  // ...so the work tree starts clean, and diff.patch (git add -A, then
+  // git diff --cached) only holds what the agent changes.
+  assert.equal(git(dest, "status", "--porcelain"), "");
 });

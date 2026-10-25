@@ -58,10 +58,28 @@ const Outcome = z.strictObject({
   labels: uniqueList(Slug),
 });
 
+// A variant of the starting repo. The id becomes a run id segment (hence
+// a slug). The overlay is a directory copied over the extracted repo
+// before the workspace's initial commit; no overlay means the repo as is.
+const Condition = z.strictObject({
+  id: Slug,
+  overlay: z.string().min(1).optional(),
+});
+
 export const ExperimentSchema = z.strictObject({
   id: Slug,
   category: Slug,
   repo: Repo,
+  // Optional: without it, the experiment has one implicit "baseline"
+  // condition and run ids keep their original shape.
+  conditions: z
+    .array(Condition)
+    .min(1)
+    .refine(
+      (conditions) => new Set(conditions.map((c) => c.id)).size === conditions.length,
+      "condition ids must be unique",
+    )
+    .optional(),
   agents: z
     .array(Agent)
     .min(1)
@@ -75,5 +93,7 @@ export const ExperimentSchema = z.strictObject({
   timeout_s: z.number().int().positive(),
   outcome: Outcome,
 });
+
+
 
 export type Experiment = z.infer<typeof ExperimentSchema>;

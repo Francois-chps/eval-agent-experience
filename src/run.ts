@@ -12,6 +12,7 @@ import { preflight } from "./checks.ts";
 import { ConfigError, loadExperiment } from "./config.ts";
 import { runCommand } from "./exec.ts";
 import { readMeta, writeMeta, type Meta, type TurnMeta } from "./meta.ts";
+import { hashOverlay } from "./overlay.ts";
 import { buildPlan, type RunSpec } from "./plan.ts";
 import { loadPrompt } from "./prompt.ts";
 import type { Experiment } from "./schema.ts";
@@ -23,7 +24,7 @@ type Turn = Experiment["protocol"]["turns"][number];
 type TurnBase = Omit<TurnSpec, "turn" | "message" | "sessionId">;
 
 // Frozen in meta.json: resuming under other values would mix two experiments.
-const FROZEN = ["agent_version", "image", "model", "repo_hash", "timeout_s", "workspace_branch"] as const;
+const FROZEN = ["agent_version", "image", "model", "overlay_hash", "repo_hash", "timeout_s", "workspace_branch"] as const;
 export type Conditions = Pick<Meta, (typeof FROZEN)[number]>;
 
 // docker run exits 125-127 when docker itself fails (bad flag, missing .env,
@@ -39,8 +40,10 @@ export function turnMessage(turn: Turn, body: string): string {
 }
 
 export function conditionDiffs(recorded: Conditions, expected: Conditions): string[] {
-  return FROZEN.filter((key) => recorded[key] !== expected[key]).map(
-    (key) => `${key}: recorded ${recorded[key]}, config says ${expected[key]}`,
+  // A field missing from an older meta.json counts as null (no overlay).
+  const value = (c: Conditions, key: (typeof FROZEN)[number]) => c[key] ?? null;
+  return FROZEN.filter((key) => value(recorded, key) !== value(expected, key)).map(
+    (key) => `${key}: recorded ${value(recorded, key)}, config says ${value(expected, key)}`,
   );
 }
 
@@ -108,10 +111,11 @@ export async function runOne(
     throw new ConfigError(`no adapter for agent ${agent.id}`);
   }
 
-  const conditions: Conditions = {
+    const conditions: Conditions = {
     agent_version: agent.version,
     image: agent.image,
     model: spec.model,
+    overlay_hash: spec.overlay === null ? null : await hashOverlay(spec.overlay),
     repo_hash: experiment.repo.hash,
     timeout_s: experiment.timeout_s,
     workspace_branch: WORKSPACE_BRANCH,
@@ -140,7 +144,8 @@ export async function runOne(
   await rm(runDir, { recursive: true, force: true });
   const workspaceDir = join(runDir, "workspace");
   await mkdir(workspaceDir, { recursive: true });
-  await prepareWorkspace(experiment.repo.path, workspaceDir, runCommand);
+  await prepareWorkspace(experiment.repo.path, workspaceDir, runCommand, spec.overlay);
+
 
   console.error(`run ${spec.id}`);
   const startedAt = new Date().toISOString();
@@ -156,6 +161,7 @@ export async function runOne(
     prompt_id: prompt.id,
     persona: spec.persona,
     wording: spec.wording,
+    condition: spec.condition,
     repetition: spec.repetition,
     agent: spec.agent.id,
     ...conditions,

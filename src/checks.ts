@@ -7,6 +7,7 @@
 import { runCommand, type CommandResult, type Run } from "./exec.ts";
 import type { Experiment } from "./schema.ts";
 import { findAdapter } from "./agents/index.ts";
+import { listOverlay } from "./overlay.ts";
 
 export interface CheckResult {
   name: string;
@@ -47,6 +48,20 @@ export async function preflight(
       ? pass("neutrality", `${path} is neutral`)
       : fail("neutrality", output(neutral)),
   );
+
+
+  // Overlays are checked up front: a missing fixture fails now, not after
+  // the first runs of the other conditions.
+  for (const condition of experiment.conditions ?? []) {
+    if (condition.overlay === undefined) continue;
+    const name = `overlay ${condition.id}`;
+    try {
+      const files = await listOverlay(condition.overlay);
+      results.push(pass(name, `${condition.overlay}: ${files.join(", ")}`));
+    } catch (error) {
+      results.push(fail(name, error instanceof Error ? error.message : String(error)));
+    }
+  }
 
   for (const agent of experiment.agents) {
     const image = await run("docker", ["image", "inspect", "--format", "{{.Id}}", agent.image]);
