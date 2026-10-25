@@ -65,3 +65,43 @@ test("rejects two models that would share a run id", () => {
   const agent = { ...pilot.agents[0]!, models: ["a/b", "a-b"] };
   assert.throws(() => buildPlan({ ...pilot, agents: [agent] }), ConfigError);
 });
+
+const withConditions = {
+  ...pilot,
+  conditions: [
+    { id: "baseline" },
+    { id: "mention", overlay: "fixtures/incumbent-sendgrid/mention" },
+  ],
+};
+
+test("without conditions, every run is an implicit baseline without overlay", () => {
+  for (const run of buildPlan(pilot)) {
+    assert.equal(run.condition, "baseline");
+    assert.equal(run.overlay, null);
+  }
+});
+
+test("declared conditions become a run id segment", () => {
+  const ids = buildPlan(withConditions).map((r) => r.id);
+  assert.equal(ids.length, 12);
+  assert.ok(ids.includes("email-pilot/opencode/opencode-big-pickle/baseline/cto.p1/r1"));
+  assert.ok(ids.includes("email-pilot/opencode/opencode-big-pickle/mention/cto.p1/r1"));
+});
+
+test("each run carries the overlay of its condition", () => {
+  const runs = buildPlan(withConditions);
+  assert.equal(runs.find((r) => r.condition === "mention")?.overlay, "fixtures/incumbent-sendgrid/mention");
+  assert.equal(runs.find((r) => r.condition === "baseline")?.overlay, null);
+});
+
+test("conditions are expanded inside each repetition", () => {
+  const runs = buildPlan({ ...withConditions, repetitions: 2 });
+  const round = (r: number) => [
+    ...Array<string>(6).fill(`${r}:baseline`),
+    ...Array<string>(6).fill(`${r}:mention`),
+  ];
+  assert.deepEqual(
+    runs.map((r) => `${r.repetition}:${r.condition}`),
+    [...round(1), ...round(2)],
+  );
+});
