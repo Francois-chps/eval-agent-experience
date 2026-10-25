@@ -97,3 +97,21 @@ test("only frozen conditions that differ are reported", () => {
   assert.equal(diffs.length, 2);
   assert.ok(diffs[0]?.includes("1.20.0"), diffs[0]);
 });
+
+test("a missing overlay hash in an older meta.json counts as no overlay", () => {
+  const older: Conditions = {
+    agent_version: "1.19.3",
+    image: "agent-bench:0.1",
+    model: "m",
+    repo_hash: "7e73ee6a7ade",
+    timeout_s: 1800,
+    workspace_branch: "master",
+  };
+  assert.deepEqual(conditionDiffs(older, { ...older, overlay_hash: null }), []);
+  const diffs = conditionDiffs(
+    { ...older, overlay_hash: "0123456789ab" },
+    { ...older, overlay_hash: "ba9876543210" },
+  );
+  assert.equal(diffs.length, 1);
+  assert.ok(diffs[0]?.startsWith("overlay_hash:"), diffs[0]);
+});

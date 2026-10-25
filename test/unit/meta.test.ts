@@ -75,3 +75,12 @@ test("an invalid meta is never written", async (t) => {
   await assert.rejects(writeMeta(path, { ...META, tokens: -1 }));
   assert.deepEqual(await readMeta(path), { status: "missing" });
 });
+
+test("condition and overlay hash are recorded, and optional for older runs", async (t) => {
+  // META has neither field, like the email-full runs (first test: still valid).
+  const path = await metaPath(t);
+  const withCondition: Meta = { ...META, condition: "mention", overlay_hash: "0123456789ab" };
+  await writeMeta(path, withCondition);
+  assert.deepEqual(await readMeta(path), { status: "ok", meta: withCondition });
+  await assert.rejects(writeMeta(path, { ...META, overlay_hash: "not-a-hash" }));
+});

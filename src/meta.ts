@@ -32,6 +32,10 @@ export const MetaSchema = z.strictObject({
   image: z.string().min(1),
   repo_hash: z.string().regex(/^[0-9a-f]{12}$/),
   workspace_branch: z.string().min(1),
+    /** Condition of the run; absent in runs recorded before conditions. */
+  condition: z.string().min(1).optional(),
+  /** Hash of the condition overlay, null without overlay; absent in older runs. */
+  overlay_hash: z.string().regex(/^[0-9a-f]{12}$/).nullable().optional(),
   session_id: z.string().nullable(),
   started_at: z.iso.datetime(),
   timeout_s: z.number().positive(),
