@@ -9,6 +9,7 @@
  * really exist is checked later, before a run.
  */
 import * as z from "zod";
+import { CATALOGS } from "./detection/catalogs.ts";
 
 const Slug = z
   .string()
@@ -68,7 +69,12 @@ const Condition = z.strictObject({
 
 export const ExperimentSchema = z.strictObject({
   id: Slug,
-  category: Slug,
+    // Picks the detection catalog of bench report: a category without one
+  // fails at load time instead of reporting every run as "none".
+  category: Slug.refine(
+    (category) => CATALOGS.has(category),
+    `has no detection catalog (known: ${[...CATALOGS.keys()].join(", ")})`,
+  ),
   repo: Repo,
   // Optional: without it, the experiment has one implicit "baseline"
   // condition and run ids keep their original shape.

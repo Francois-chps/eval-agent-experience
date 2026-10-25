@@ -8,6 +8,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadExperiment } from "../config.ts";
+import { catalogFor, type Catalog } from "../detection/catalogs.ts";
 import { detectTools, type Evidence, type Verdict } from "../detection/detect.ts";
 import { primaryTool } from "../detection/primary.ts";
 import { readMeta, type Meta } from "../meta.ts";
@@ -102,13 +103,15 @@ async function readDiff(path: string): Promise<string | null> {
 /**
  * The condition comes from the plan (buildReport): runs recorded before
  * conditions existed have none in meta.json but are baseline runs.
+ * The catalog is the one of the experiment's category.
  */
 export function reportRow(
   meta: Meta,
   diff: string | null,
+  catalog: Catalog,
   condition: string = meta.condition ?? BASELINE,
 ): ReportRow {
-  const detection = detectTools(diff ?? "");
+  const detection = detectTools(diff ?? "", catalog);
   return {
     run_id: meta.run_id,
     condition,
@@ -127,6 +130,7 @@ export function reportRow(
 
 export async function buildReport(configPath: string, runsRoot: string = RUNS_ROOT): Promise<Report> {
   const experiment = await loadExperiment(configPath);
+  const catalog = catalogFor(experiment.category);
   const report: Report = { experiment: experiment.id, rows: [], skipped: [], pending: 0 };
   for (const spec of buildPlan(experiment)) {
     const runDir = join(runsRoot, spec.id);
@@ -136,7 +140,9 @@ export async function buildReport(configPath: string, runsRoot: string = RUNS_RO
     } else if (read.status === "invalid") {
       report.skipped.push({ run_id: spec.id, reason: read.reason });
     } else {
-           report.rows.push(reportRow(read.meta, await readDiff(join(runDir, "diff.patch")), spec.condition));
+            const diff = await readDiff(join(runDir, "diff.patch"));
+            report.rows.push(reportRow(read.meta, diff, catalog, spec.condition));
+
     }
   }
   return report;

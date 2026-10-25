@@ -1,4 +1,5 @@
-import { EMAIL_TOOLS, escapeRegExp, type EmailTool } from "./email-tools.js";
+import type { Catalog } from "./catalogs.js";
+import { escapeRegExp } from "./email-tools.js";
 
 export type SignalKind = "dependency" | "import" | "host" | "env";
 export type Verdict = "none" | "single" | "multiple";
@@ -96,7 +97,7 @@ export function isIgnored(file: string): boolean {
   return LOCKFILES.has(name) || /\.mdx?$/i.test(name);
 }
 
-function matchersFor(tools: readonly EmailTool[]): Matcher[] {
+function matchersFor(tools: Catalog): Matcher[] {
   return tools.flatMap((tool): Matcher[] => [
     ...tool.packages.map((pkg): Matcher => ({
       tool: tool.id,
@@ -116,10 +117,10 @@ function matchersFor(tools: readonly EmailTool[]): Matcher[] {
 }
 
 /**
- * Email tools used by the changes of a run, from the added lines of its diff only.
+ * Tools of a catalog used by the changes of a run, from the added lines of its diff only.
  * In package.json only dependencies count; in other files imports, API hosts and env vars count.
  */
-export function detectTools(diff: string, tools: readonly EmailTool[] = EMAIL_TOOLS): Detection {
+export function detectTools(diff: string, tools: Catalog): Detection {
   const matchers = matchersFor(tools);
   const evidence: Evidence[] = [];
   for (const added of addedLines(diff)) {

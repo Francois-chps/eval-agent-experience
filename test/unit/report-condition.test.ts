@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Meta } from "../../src/meta.ts";
+import { EMAIL_TOOLS } from "../../src/detection/email-tools.ts";
 import { renderPage } from "../../src/report/page.ts";
 import { reportRow, type ReportRow } from "../../src/report/report.ts";
 import { dimensionsFor, summarize } from "../../src/report/summary.ts";
@@ -29,16 +30,16 @@ const META: Meta = {
 };
 
 test("a report row carries the condition given by the plan", () => {
-  assert.equal(reportRow(META, null, "mention").condition, "mention");
+  assert.equal(reportRow(META, null, EMAIL_TOOLS, "mention").condition, "mention");
 });
 
 test("without a given condition, the row uses meta.json, then baseline", () => {
-  assert.equal(reportRow({ ...META, condition: "env" }, null).condition, "env");
-  assert.equal(reportRow(META, null).condition, "baseline");
+  assert.equal(reportRow({ ...META, condition: "env" }, null, EMAIL_TOOLS).condition, "env");
+  assert.equal(reportRow(META, null, EMAIL_TOOLS).condition, "baseline");
 });
 
 function run(condition: string, tool: string): ReportRow {
-  return { ...reportRow(META, null, condition), primary_tool: tool };
+  return { ...reportRow(META, null, EMAIL_TOOLS, condition), primary_tool: tool };
 }
 
 // Plan order: mention comes before env, although "env" sorts first by name.

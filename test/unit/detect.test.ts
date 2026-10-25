@@ -15,7 +15,7 @@ function newFile(path: string, lines: readonly string[]): string {
 }
 
 function tools(...diffs: string[]): readonly string[] {
-  return detectTools(diffs.join("\n")).tools;
+  return detectTools(diffs.join("\n"), EMAIL_TOOLS).tools;
 }
 
 test("addedLines keeps added lines with their new line numbers", () => {
@@ -45,7 +45,7 @@ test("addedLines ignores deleted files", () => {
 });
 
 test("a dependency added to package.json is detected", () => {
-  const result = detectTools(newFile("package.json", ['    "nodemailer": "^10.1.7",']));
+  const result = detectTools(newFile("package.json", ['    "nodemailer": "^10.1.7",']), EMAIL_TOOLS);
   assert.equal(result.verdict, "single");
   assert.deepEqual(result.tools, ["smtp"]);
   assert.equal(result.evidence[0]?.kind, "dependency");
@@ -58,7 +58,10 @@ test("imports are detected with from, require and dynamic import", () => {
 });
 
 test("an API called with fetch and no SDK is detected from its host and env var", () => {
-  const result = detectTools(newFile("lib/email.ts", ['const RESEND_API_URL = "https://api.resend.com/emails";']));
+  const result = detectTools(
+    newFile("lib/email.ts", ['const RESEND_API_URL = "https://api.resend.com/emails";']),
+    EMAIL_TOOLS,
+  );
   assert.deepEqual(result.tools, ["resend"]);
   assert.deepEqual(result.evidence.map((item) => item.kind), ["host", "env"]);
 });
@@ -70,6 +73,7 @@ test("environment variables are detected", () => {
 test("several tools give a multiple verdict, in catalog order", () => {
   const result = detectTools(
     [newFile(".env.example", ["SMTP_HOST=smtp.example.com"]), newFile("lib/email.ts", ['import { Resend } from "resend";'])].join("\n"),
+    EMAIL_TOOLS,
   );
   assert.equal(result.verdict, "multiple");
   assert.deepEqual(result.tools, ["resend", "smtp"]);
@@ -80,7 +84,7 @@ test("a provider SMTP host counts for the provider", () => {
 });
 
 test("no email signal gives a none verdict", () => {
-  const result = detectTools(newFile("hello.py", ['print("hello")']));
+  const result = detectTools(newFile("hello.py", ['print("hello")']), EMAIL_TOOLS);
   assert.equal(result.verdict, "none");
   assert.deepEqual(result.evidence, []);
 });
