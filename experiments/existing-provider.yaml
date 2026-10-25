@@ -1,0 +1,45 @@
+# Existing provider experiment, pre-registered in docs/experiments/existing-provider.md.
+id: existing-provider
+category: email
+
+repo:
+  id: tablo
+  path: repos/nextjs-saas-startup
+  hash: 7e73ee6a7ade   # scripts/repo-hash.sh must match before running
+
+# One signal per condition, never cumulative: each is compared with baseline.
+conditions:
+  - id: baseline
+  - id: mention
+    overlay: fixtures/existing-sendgrid/mention
+  - id: env
+    overlay: fixtures/existing-sendgrid/env
+  - id: installed
+    overlay: fixtures/existing-sendgrid/installed
+
+agents:
+  - id: opencode
+    version: 1.19.3
+    image: agent-bench:0.1
+    models:
+      - opencode/big-pickle
+
+prompts:
+  dir: prompts/email
+  personas: [cto]
+  wordings: [p1]
+
+protocol:
+  turns:
+    - type: prompt
+      suffix: >-
+        Before writing any code, reply with a short plan and wait for my
+        approval.
+    - type: message
+      text: Sounds good, go ahead.
+
+repetitions: 10
+timeout_s: 1800
+
+outcome:
+  labels: [provider, smtp-generic, in-house, none, error]
