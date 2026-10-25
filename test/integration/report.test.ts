@@ -70,7 +70,7 @@ test("report covers finished runs only and writes CSV, JSON and summary", async 
 
   const csv = (await readFile(join(root, "email-full", "results.csv"), "utf8")).trim().split("\n");
   assert.equal(csv.length, 4);
-  assert.equal(csv[0], "run_id,persona,wording,model,repetition,timed_out,has_diff,verdict,tools,primary_tool");
+  assert.equal(csv[0], "run_id,condition,persona,wording,model,repetition,timed_out,has_diff,verdict,tools,primary_tool");
   assert.ok(csv[1]?.endsWith(",false,true,single,resend,resend"), csv[1]);
   assert.ok(csv[2]?.endsWith(',true,true,multiple,"resend,smtp",smtp'), csv[2]);
   assert.ok(csv[3]?.endsWith(",false,false,none,,none"), csv[3]);

@@ -11,13 +11,15 @@ import { loadExperiment } from "../config.ts";
 import { detectTools, type Evidence, type Verdict } from "../detection/detect.ts";
 import { primaryTool } from "../detection/primary.ts";
 import { readMeta, type Meta } from "../meta.ts";
-import { buildPlan } from "../plan.ts";
+import { BASELINE, buildPlan } from "../plan.ts";
 import { RUNS_ROOT } from "../run.ts";
 import { toCsv } from "./csv.ts";
 import { DIMENSIONS, summarize } from "./summary.ts";
 
 export interface ReportRow {
   run_id: string;
+    /** Condition of the run ("baseline" when the experiment declares none). */
+  condition: string;
   persona: string;
   wording: string;
   model: string;
@@ -42,6 +44,7 @@ export interface Report {
 
 const CSV_HEADER = [
   "run_id",
+  "condition",
   "persona",
   "wording",
   "model",
@@ -85,10 +88,19 @@ async function readDiff(path: string): Promise<string | null> {
   }
 }
 
-export function reportRow(meta: Meta, diff: string | null): ReportRow {
+/**
+ * The condition comes from the plan (buildReport): runs recorded before
+ * conditions existed have none in meta.json but are baseline runs.
+ */
+export function reportRow(
+  meta: Meta,
+  diff: string | null,
+  condition: string = meta.condition ?? BASELINE,
+): ReportRow {
   const detection = detectTools(diff ?? "");
   return {
     run_id: meta.run_id,
+    condition,
     persona: meta.persona,
     wording: meta.wording,
     model: meta.model,
@@ -113,7 +125,7 @@ export async function buildReport(configPath: string, runsRoot: string = RUNS_RO
     } else if (read.status === "invalid") {
       report.skipped.push({ run_id: spec.id, reason: read.reason });
     } else {
-      report.rows.push(reportRow(read.meta, await readDiff(join(runDir, "diff.patch"))));
+           report.rows.push(reportRow(read.meta, await readDiff(join(runDir, "diff.patch")), spec.condition));
     }
   }
   return report;
@@ -143,6 +155,7 @@ export async function reportExperiment(configPath: string, runsRoot: string = RU
   await mkdir(outDir, { recursive: true });
   const csvRows = report.rows.map((row) => [
     row.run_id,
+    row.condition,
     row.persona,
     row.wording,
     row.model,
