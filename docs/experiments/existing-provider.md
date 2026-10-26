@@ -85,3 +85,39 @@ For H2 with no SendGrid run at baseline, a condition needs at least 6/10
   installed package.
 - The design is not changed after the first counted run. Any deviation is
   listed with its reason in the results.
+
+## Deviations
+
+Written after the 40 runs. The decision below was proposed before the rates
+were seen, but committed after `bench report` had been run, so the commit
+timestamp does not prove it. Both analyses lead to the same conclusion, so the
+choice does not change the result.
+
+Two runs stopped during turn 2 ("Sounds good, go ahead.") because the model
+provider blocked a response: the last event of `turn2.jsonl` is a
+`ContentFilterError` ("The response was blocked by the provider's content
+filter"). Both had a plan in turn 1, made a few tool calls in turn 2, then
+exited with code 1 after about 14 s, with an empty diff.
+
+| Run                   | Turn 2         | Diff  |
+| --------------------- | -------------- | ----- |
+| `mention/cto.p1/r1`   | exit 1, 14.3 s | empty |
+| `installed/cto.p1/r5` | exit 1, 13.7 s | empty |
+
+The run rules only planned for runs without `meta.json`, and these two have a
+valid one. Their `none` reflects the provider, not a choice of the agent.
+
+- **Primary analysis:** the rules as written, so all 40 runs count, these two
+  included.
+- **Sensitivity analysis:** the same tests without these two runs (38 runs:
+  9 in `mention` and 9 in `installed`). A conclusion is only drawn when both
+  analyses agree.
+- The runs are not repeated: a new run would be a choice made after the fact.
+
+The runner records `"error": null` in `meta.json` for these turns: provider
+errors reported in the agent's event stream are not surfaced yet.
+
+Other checks on the 40 runs: 10 per condition, one overlay hash per condition,
+OpenCode 1.19.3 with `opencode/big-pickle` everywhere, no timeout, a
+`diff.patch` for every run, and the first counted run (20:04 UTC) started
+after the commit that froze the design (19:08 UTC).
