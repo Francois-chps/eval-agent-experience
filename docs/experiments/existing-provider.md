@@ -121,3 +121,49 @@ Other checks on the 40 runs: 10 per condition, one overlay hash per condition,
 OpenCode 1.19.3 with `opencode/big-pickle` everywhere, no timeout, a
 `diff.patch` for every run, and the first counted run (20:04 UTC) started
 after the commit that froze the design (19:08 UTC).
+
+## Results
+
+40 runs on 2026-10-25 (20:04 to 21:44 UTC), no timeout. Primary tool per
+condition, with the 95% Wilson interval of the main tool:
+
+| Condition   | Resend                | SendGrid              | none | ambiguous          |
+| ----------- | --------------------- | --------------------- | ---- | ------------------ |
+| `baseline`  | **9/10** (59.6–98.2%) | 0/10 (0–27.8%)        | 1    | 0                  |
+| `mention`   | 0/10 (0–27.8%)        | **8/10** (49.0–94.3%) | 2    | 0                  |
+| `env`       | 1/10 (1.8–40.4%)      | **7/10** (39.7–89.2%) | 1    | 1 (resend + brevo) |
+| `installed` | 0/10 (0–27.8%)        | **9/10** (59.6–98.2%) | 1    | 0                  |
+
+The two runs cut by the content filter are one `none` in `mention` and the
+`none` in `installed`.
+
+### Pre-registered tests
+
+Two-sided Fisher exact test against `baseline`, significant when p < 0.0167
+(Bonferroni, 3 comparisons per hypothesis).
+
+| Condition   | H1 Resend, 40 runs | H1, 38 runs | H2 SendGrid, 40 runs | H2, 38 runs |
+| ----------- | ------------------ | ----------- | -------------------- | ----------- |
+| `mention`   | 0.00012            | 0.00012     | 0.00071              | 0.00012     |
+| `env`       | 0.0011             | 0.0011      | 0.0031               | 0.0031      |
+| `installed` | 0.00012            | 0.00012     | 0.00012              | 0.000011    |
+
+H1 and H2 are supported for the three signals, in both analyses: each signal
+alone lowers the share of Resend and raises the share of SendGrid.
+
+### Exploratory (not tested)
+
+- No visible ladder: 8/10, 7/10 and 9/10 SendGrid, with widely overlapping
+  intervals. One line in the README is already enough to switch the agent
+  from Resend to SendGrid.
+- Without any signal, the agent picks Resend (9/10), as in email-full.
+- The only Resend run outside baseline is in `env`; the only `ambiguous` run
+  (`env/r10`) adds both Resend and Brevo.
+- The three `none` runs not cut by the filter (`baseline/r9`, `mention/r2`,
+  `env/r8`) are not reviewed yet.
+
+### Limits
+
+One model, one prompt (cto/p1), one repo, 10 runs per condition. Each signal
+is tested alone, and only with SendGrid: these runs do not tell whether a less
+known provider would be kept as often.
